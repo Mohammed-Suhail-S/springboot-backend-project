@@ -1,0 +1,36 @@
+#
+# Build stage
+#
+FROM maven:3.8.3-openjdk-17 AS build
+WORKDIR /app
+
+# Copy only the essential files for dependency resolution first (for caching)
+COPY pom.xml /app/
+RUN mvn dependency:resolve
+
+# Copy the entire source code
+COPY src /app/src
+
+# Skip tests during build to avoid build failures from incomplete test setup
+RUN mvn clean package -DskipTests
+
+#
+# Package stage
+#
+FROM openjdk:17-alpine
+WORKDIR /app
+
+# Copy the packaged jar from the build stage
+COPY --from=build /app/target/*.jar /app/app.jar
+
+# Expose the application port
+EXPOSE 8080
+
+# Set environment variables (replace with actual values in production)
+ENV SPRING_PROFILES_ACTIVE=prod \
+    SPRING_DATASOURCE_URL=jdbc:postgresql://visually-proper-boar.a1.pgedge.io:5432/signup \
+    SPRING_DATASOURCE_USERNAME=app \
+    SPRING_DATASOURCE_PASSWORD=nZXVa4X036GhDBKx75i3N243
+
+# Run the application
+ENTRYPOINT ["java","-jar","app.jar"]
